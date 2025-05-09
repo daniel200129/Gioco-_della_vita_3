@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gioco della Vita</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #fff;
+    }
+
+    header {
+      background: #1e1e1e;
+      padding: 10px;
+      text-align: center;
+      font-size: 18px;
+      border-bottom: 2px solid #444;
+    }
+
+    .level-info {
+      font-weight: bold;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .room {
+      background: #333;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .room:active {
+      transform: scale(0.97);
+      box-shadow: 0 0 10px #fff3;
+    }
+
+    .room.study { background: #4a90e2; }
+    .room.work { background: #50e3c2; }
+    .room.cleaning { background: #f5a623; }
+    .room.art { background: #bd10e0; }
+    .room.learn { background: #7ed321; }
+    .room.savings { background: #d0021b; }
+
+    .actions-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 50%;
+      background: #1e1e1e;
+      border-top: 2px solid #555;
+      padding: 15px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .action {
+      padding: 10px;
+      margin: 5px 0;
+      background: #292929;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .action:active {
+      background: #444;
+    }
+
+    .xp {
+      color: #9bdaff;
+    }
+
+    .energy {
+      color: #ffcc80;
+      font-size: 0.9em;
+    }
+
+    .status-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #181818;
+      padding: 5px 15px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="status-bar">
+  <div>Livello: <span id="level">1</span> (<span id="material">Polvere</span>)</div>
+  <div>XP: <span id="xp">0</span> | Energia: <span id="energy">100</span></div>
+</div>
+
+<header>Seleziona una stanza per iniziare</header>
+
+<div class="container">
+  <div class="room study" onclick="openActions('Studio')">Studio</div>
+  <div class="room work" onclick="openActions('Lavoro')">Lavoro</div>
+  <div class="room cleaning" onclick="openActions('Pulizia')">Pulizia</div>
+  <div class="room art" onclick="openActions('Disegno')">Disegno</div>
+  <div class="room learn" onclick="openActions('Apprendimento')">Imparare</div>
+  <div class="room savings" onclick="openActions('Salvadanaio')">Salvadanaio</div>
+</div>
+
+<div class="actions-panel" id="actionsPanel"></div>
+
+<script>
+  let xp = 0;
+  let energy = 100;
+  const xpPerLevel = 100;
+  const materials = ["Polvere", "Rame", "Ferro", "Argento", "Oro", "Zaffiro", "Rubino", "Diamante"];
+
+  const actionsByRoom = {
+    "Studio": Array.from({ length: 15 }, (_, i) => ({ name: `Studia capitolo ${i+1}`, xp: 5 + i, energy: 2 + (i % 3) })),
+    "Lavoro": Array.from({ length: 15 }, (_, i) => ({ name: `Lavoro ${i+1}`, xp: 6 + i, energy: 3 + (i % 4) })),
+    "Pulizia": Array.from({ length: 15 }, (_, i) => ({ name: `Pulisci stanza ${i+1}`, xp: 4 + i, energy: 2 })),
+    "Disegno": Array.from({ length: 15 }, (_, i) => ({ name: `Disegna soggetto ${i+1}`, xp: 5 + i, energy: 3 })),
+    "Apprendimento": Array.from({ length: 15 }, (_, i) => ({ name: `Impara concetto ${i+1}`, xp: 6 + i, energy: 2 + (i % 2) })),
+    "Salvadanaio": [
+      { name: "Aggiungi entrata +10", xp: 1, energy: 0 },
+      { name: "Registra spesa -5", xp: 1, energy: 0 },
+      { name: "Controlla saldo", xp: 2, energy: 1 }
+    ]
+  };
+
+  function openActions(room) {
+    const panel = document.getElementById("actionsPanel");
+    panel.innerHTML = `<h3>${room}</h3>`;
+    actionsByRoom[room].forEach(action => {
+      const div = document.createElement("div");
+      div.className = "action";
+      div.innerHTML = `
+        <span>${action.name}</span>
+        <span><span class="xp">+${action.xp}xp</span> <span class="energy">-${action.energy}⚡</span></span>`;
+      div.onclick = () => doAction(action.xp, action.energy);
+      panel.appendChild(div);
+    });
+    panel.style.display = "block";
+  }
+
+  function doAction(gainXp, costEnergy) {
+    if (energy >= costEnergy) {
+      xp += gainXp;
+      energy -= costEnergy;
+      updateStatus();
+    } else {
+      alert("Energia insufficiente!");
+    }
+  }
+
+  function updateStatus() {
+    const level = Math.floor(xp / xpPerLevel) + 1;
+    const material = materials[Math.min(level - 1, materials.length - 1)];
+    document.getElementById("level").innerText = level;
+    document.getElementById("xp").innerText = xp;
+    document.getElementById("energy").innerText = energy;
+    document.getElementById("material").innerText = material;
+  }
+
+  // Mezzanotte: reset energia
+  setInterval(() => {
+    const now = new Date();
+    if (now.getHours() === 0 && now.getMinutes() === 0) {
+      energy = 100;
+      updateStatus();
+    }
+  }, 60000); // ogni minuto controlla
+
+  updateStatus();
+</script>
+</body>
+  </html>
